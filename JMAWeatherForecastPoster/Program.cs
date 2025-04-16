@@ -13,130 +13,139 @@ namespace JMAWeatherForecastPoster
         internal static HttpClient client = new();
         static void Main(string[] args)
         {
-            var getDt = DateTime.Parse(client.GetStringAsync("https://www.jma.go.jp/bosai/amedas/data/latest_time.txt").Result);
-            Console.WriteLine("get dateTime: " + getDt.ToString());
-            var url_amedas = $"https://www.jma.go.jp/bosai/amedas/data/point/56227/{getDt:yyyyMMdd}_{Get3H(getDt)}.json";
-            var url_forecast = "https://www.jma.go.jp/bosai/forecast/data/forecast/170000.json";
-            var url_warning = "https://www.jma.go.jp/bosai/warning/data/warning/170000.json";
-            var url_overview = "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/170000.json";
-            var jsonRaw_amedas = client.GetStringAsync(url_amedas).Result;
-            Console.WriteLine("GET: " + url_amedas);
-            var jsonRaw_forecast = client.GetStringAsync(url_forecast).Result;
-            Console.WriteLine("GET: " + url_forecast);
-            var jsonRaw_warning = client.GetStringAsync(url_warning).Result;
-            Console.WriteLine("GET: " + url_warning);
-            var jsonRaw_overview = client.GetStringAsync(url_overview).Result;
-            Console.WriteLine("GET: " + url_overview);
-            var json_amedas = JsonNode.Parse(jsonRaw_amedas);
-            var json_forecast = JsonNode.Parse(jsonRaw_forecast);
-            var json_warning = JsonNode.Parse(jsonRaw_warning);
-            var json_overview = JsonNode.Parse(jsonRaw_overview);
-            Console.WriteLine("Parse finish");
-
-            var image = new Bitmap(1000, 1000);
-            using var g = Graphics.FromImage(image);
-            g.Clear(Color.White);
-            var text = new StringBuilder();
-
-            text.AppendLine("[金沢のアメダス観測情報]");
-            var amedasData = json_amedas[getDt.ToString("yyyyMMddHH") + "0000"];
-            text.Append("観測: ");
-            text.Append(getDt.Day);
-            text.Append('日');
-            text.Append(getDt.Hour);
-            text.Append("時　気温: ");
-            text.Append((double?)amedasData["temp"][0]);
-            text.Append(AQC2String[((int?)amedasData["temp"][1]) ?? -1]);
-            text.Append("℃　24h降水量: ");
-            text.Append((double?)amedasData["precipitation24h"][0]);
-            text.Append(AQC2String[((int?)amedasData["precipitation24h"][1]) ?? -1]);
-            text.Append("mm　風向風速: ");
-            text.Append(WindDirection2String[((int?)amedasData["windDirection"][0]) ?? -1]);
-            text.Append(AQC2String[((int?)amedasData["windDirection"][1]) ?? -1]);
-            text.Append(' ');
-            text.Append((double?)amedasData["wind"][0]);
-            text.Append(AQC2String[((int?)amedasData["wind"][1]) ?? -1]);
-            text.Append("m/s\n積雪深: ");
-            text.Append((int?)amedasData["snow"][0]);
-            text.Append(AQC2String[((int?)amedasData["snow"][1]) ?? -1]);
-            text.Append("cm　24h降雪量: ");
-            text.Append((int?)amedasData["snow24h"][0]);
-            text.Append(AQC2String[((int?)amedasData["snow24h"][1]) ?? -1]);
-            text.Append("cm　湿度: ");
-            text.Append((int?)amedasData["humidity"][0]);
-            text.Append(AQC2String[((int?)amedasData["humidity"][1]) ?? -1]);
-            text.Append("%　気圧: ");
-            text.Append((double?)amedasData["pressure"][0]);
-            text.Append(AQC2String[((int?)amedasData["pressure"][1]) ?? -1]);
-            text.Append("hPa　自動観測天気: ");
-            text.Append(Weather2String[((int?)amedasData["weather"][0]) ?? -1]);
-            text.AppendLine(AQC2String[((int?)amedasData["weather"][1]) ?? -1]);
-
-
-            text.AppendLine("[金沢市の気象警報・注意報]");
-            text.Append((string)json_warning["publishingOffice"]);
-            text.Append('　');
-            text.Append(DateTime.Parse((string)json_warning["reportDatetime"]).ToString("yyyy/MM/dd HH:mm:ss"));
-            text.AppendLine("発表");
-            text.AppendLine((string)json_warning["headlineText"]);
-            text.AppendLine();
-            text.Append("発表中: ");
-            foreach (var areaType in json_warning["areaTypes"].AsArray())
-                foreach (var area in areaType["areas"].AsArray())
-                    if ((string)area["code"] == "1720100")
-                    {
-                        Console.WriteLine("code: 1720100  found");
-                        var warnings = area["warnings"].AsArray();
-                        var c = 0;
-                        foreach (var warning in warnings)
-                        {
-                            var code = int.Parse((string)warning["code"]);
-                            var name = GetWarningName(code);
-                            if (code == 0) break;
-                            else if ((string)warning["status"] == "解除") continue;
-                            text.Append(name);
-                            text.Append('　');
-                            c++;
-                        }
-                        if (c == 0) text.Append("なし");
-                    }
-            text.AppendLine();
-            text.AppendLine();
-            text.AppendLine();
-            var forecast = json_forecast[0]["timeSeries"][0]["areas"][0];
-            var d = forecast["weathers"].AsArray().Count;
-            text.AppendLine("[石川県加賀の天気予報（" + (d == 2 ? "明日" : "明後日") + "までの詳細）]");
-            text.Append("今日　: ");
-            text.Append(((string)forecast["weathers"][0]).Replace("　", " "));
-            text.Append('　');
-            text.AppendLine(((string)forecast["winds"][0]).Replace("　", " "));
-
-            text.Append("明日　: ");
-            text.Append(((string)forecast["weathers"][1]).Replace("　", " "));
-            text.Append('　');
-            text.AppendLine(((string)forecast["winds"][1]).Replace("　", " "));
-
-            if (d == 3)
+            try
             {
-                text.Append("明後日: ");
-                text.Append(((string)forecast["weathers"][2]).Replace("　", " "));
+                var getDt = DateTime.Parse(client.GetStringAsync("https://www.jma.go.jp/bosai/amedas/data/latest_time.txt").Result);
+                Console.WriteLine("get dateTime: " + getDt.ToString());
+                var url_amedas = $"https://www.jma.go.jp/bosai/amedas/data/point/56227/{getDt:yyyyMMdd}_{Get3H(getDt)}.json";
+                var url_forecast = "https://www.jma.go.jp/bosai/forecast/data/forecast/170000.json";
+                var url_warning = "https://www.jma.go.jp/bosai/warning/data/warning/170000.json";
+                var url_overview = "https://www.jma.go.jp/bosai/forecast/data/overview_forecast/170000.json";
+                var jsonRaw_amedas = client.GetStringAsync(url_amedas).Result;
+                Console.WriteLine("GET: " + url_amedas);
+                var jsonRaw_forecast = client.GetStringAsync(url_forecast).Result;
+                Console.WriteLine("GET: " + url_forecast);
+                var jsonRaw_warning = client.GetStringAsync(url_warning).Result;
+                Console.WriteLine("GET: " + url_warning);
+                var jsonRaw_overview = client.GetStringAsync(url_overview).Result;
+                Console.WriteLine("GET: " + url_overview);
+                var json_amedas = JsonNode.Parse(jsonRaw_amedas);
+                var json_forecast = JsonNode.Parse(jsonRaw_forecast);
+                var json_warning = JsonNode.Parse(jsonRaw_warning);
+                var json_overview = JsonNode.Parse(jsonRaw_overview);
+                Console.WriteLine("Parse finish");
+
+                var image = new Bitmap(1000, 1000);
+                using var g = Graphics.FromImage(image);
+                g.Clear(Color.White);
+                var text = new StringBuilder();
+
+                text.AppendLine("[金沢のアメダス観測情報]");
+                var amedasData = json_amedas[getDt.ToString("yyyyMMddHH") + "0000"];
+                text.Append("観測: ");
+                text.Append(getDt.Day);
+                text.Append('日');
+                text.Append(getDt.Hour);
+                text.Append("時　気温: ");
+                text.Append((double?)amedasData["temp"][0]);
+                text.Append(AQC2String[((int?)amedasData["temp"][1]) ?? -1]);
+                text.Append("℃　24h降水量: ");
+                text.Append((double?)amedasData["precipitation24h"][0]);
+                text.Append(AQC2String[((int?)amedasData["precipitation24h"][1]) ?? -1]);
+                text.Append("mm　風向風速: ");
+                text.Append(WindDirection2String[((int?)amedasData["windDirection"][0]) ?? -1]);
+                text.Append(AQC2String[((int?)amedasData["windDirection"][1]) ?? -1]);
+                text.Append(' ');
+                text.Append((double?)amedasData["wind"][0]);
+                text.Append(AQC2String[((int?)amedasData["wind"][1]) ?? -1]);
+                text.Append("m/s\n積雪深: ");
+                text.Append((int?)amedasData["snow"][0]);
+                text.Append(AQC2String[((int?)amedasData["snow"][1]) ?? -1]);
+                text.Append("cm　24h降雪量: ");
+                text.Append((int?)amedasData["snow24h"][0]);
+                text.Append(AQC2String[((int?)amedasData["snow24h"][1]) ?? -1]);
+                text.Append("cm　湿度: ");
+                text.Append((int?)amedasData["humidity"][0]);
+                text.Append(AQC2String[((int?)amedasData["humidity"][1]) ?? -1]);
+                text.Append("%　気圧: ");
+                text.Append((double?)amedasData["pressure"][0]);
+                text.Append(AQC2String[((int?)amedasData["pressure"][1]) ?? -1]);
+                text.Append("hPa　自動観測天気: ");
+                text.Append(Weather2String[((int?)amedasData["weather"][0]) ?? -1]);
+                text.AppendLine(AQC2String[((int?)amedasData["weather"][1]) ?? -1]);
+
+
+                text.AppendLine("[金沢市の気象警報・注意報]");
+                text.Append((string)json_warning["publishingOffice"]);
                 text.Append('　');
-                text.AppendLine(((string)forecast["winds"][2]).Replace("　", " "));
+                text.Append(DateTime.Parse((string)json_warning["reportDatetime"]).ToString("yyyy/MM/dd HH:mm:ss"));
+                text.AppendLine("発表");
+                text.AppendLine((string)json_warning["headlineText"]);
+                text.AppendLine();
+                text.Append("発表中: ");
+                foreach (var areaType in json_warning["areaTypes"].AsArray())
+                    foreach (var area in areaType["areas"].AsArray())
+                        if ((string)area["code"] == "1720100")
+                        {
+                            Console.WriteLine("code: 1720100  found");
+                            var warnings = area["warnings"].AsArray();
+                            var c = 0;
+                            foreach (var warning in warnings)
+                            {
+                                var code = int.Parse((string)warning["code"]);
+                                var name = GetWarningName(code);
+                                if (code == 0) break;
+                                else if ((string)warning["status"] == "解除") continue;
+                                text.Append(name);
+                                text.Append('　');
+                                c++;
+                            }
+                            if (c == 0) text.Append("なし");
+                        }
+                text.AppendLine();
+                text.AppendLine();
+                text.AppendLine();
+                var forecast = json_forecast[0]["timeSeries"][0]["areas"][0];
+                var d = forecast["weathers"].AsArray().Count;
+                text.AppendLine("[石川県加賀の天気予報（" + (d == 2 ? "明日" : "明後日") + "までの詳細）]");
+                text.Append("今日　: ");
+                text.Append(((string)forecast["weathers"][0]).Replace("　", " "));
+                text.Append('　');
+                text.AppendLine(((string)forecast["winds"][0]).Replace("　", " "));
+
+                text.Append("明日　: ");
+                text.Append(((string)forecast["weathers"][1]).Replace("　", " "));
+                text.Append('　');
+                text.AppendLine(((string)forecast["winds"][1]).Replace("　", " "));
+
+                if (d == 3)
+                {
+                    text.Append("明後日: ");
+                    text.Append(((string)forecast["weathers"][2]).Replace("　", " "));
+                    text.Append('　');
+                    text.AppendLine(((string)forecast["winds"][2]).Replace("　", " "));
+                }
+
+                text.AppendLine();
+                text.AppendLine();
+                text.AppendLine("[石川県の天気概況]");
+                text.AppendLine(((string)json_overview["text"]).Replace("\\n", "\n").Replace("\n\n", "\n").Replace("\n＜", "\n\n＜"));
+
+
+                g.DrawString(text.ToString(), new Font("Meiryo", 16), Brushes.Black, new RectangleF(10, 10, 990, 990));
+                var path = "output\\" + DateTime.Now.ToString("yyyyMM");
+                Directory.CreateDirectory(path);
+                path += "\\" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png";
+                image.Save(path, ImageFormat.Png);
+                XPost("[自動]気象情報をお知らせします。\n\n※現在準備中です", path);
             }
-
-            text.AppendLine();
-            text.AppendLine();
-            text.AppendLine("[石川県の天気概況]");
-            text.AppendLine(((string)json_overview["text"]).Replace("\\n", "\n").Replace("\n\n", "\n").Replace("\n＜", "\n\n＜"));
-
-
-            g.DrawString(text.ToString(), new Font("Meiryo", 16), Brushes.Black, new RectangleF(10, 10, 990, 990));
-            var path = "output\\" + DateTime.Now.ToString("yyyyMM");
-            Directory.CreateDirectory(path);
-            path += "\\" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png";
-            image.Save(path, ImageFormat.Png);
-            XPost("[自動]気象情報をお知らせします。\n\n※現在準備中です", path);
+            catch (Exception ex)
+            {
+                Directory.CreateDirectory("error\\" + DateTime.Now.ToString("yyyyMM"));
+                File.WriteAllText("error\\" + DateTime.Now.ToString("yyyyMM\\\\yyyyMMddHHmmss"),ex.ToString());
+            }
         }
+
 
         public static string Get3H(DateTime dt)
         {
