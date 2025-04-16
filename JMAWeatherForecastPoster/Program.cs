@@ -103,8 +103,9 @@ namespace JMAWeatherForecastPoster
             text.AppendLine();
             text.AppendLine();
             text.AppendLine();
-            text.AppendLine("[石川県加賀の天気予報（明後日までの詳細）]");
             var forecast = json_forecast[0]["timeSeries"][0]["areas"][0];
+            var d = forecast["weathers"].AsArray().Count;
+            text.AppendLine("[石川県加賀の天気予報（" + (d == 2 ? "明日" : "明後日") + "までの詳細）]");
             text.Append("今日　: ");
             text.Append(((string)forecast["weathers"][0]).Replace("　", " "));
             text.Append('　');
@@ -115,10 +116,13 @@ namespace JMAWeatherForecastPoster
             text.Append('　');
             text.AppendLine(((string)forecast["winds"][1]).Replace("　", " "));
 
-            text.Append("明後日: ");
-            text.Append(((string)forecast["weathers"][2]).Replace("　", " "));
-            text.Append('　');
-            text.AppendLine(((string)forecast["winds"][2]).Replace("　", " "));
+            if (d == 3)
+            {
+                text.Append("明後日: ");
+                text.Append(((string)forecast["weathers"][2]).Replace("　", " "));
+                text.Append('　');
+                text.AppendLine(((string)forecast["winds"][2]).Replace("　", " "));
+            }
 
             text.AppendLine();
             text.AppendLine();
@@ -131,7 +135,7 @@ namespace JMAWeatherForecastPoster
             Directory.CreateDirectory(path);
             path += "\\" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png";
             image.Save(path, ImageFormat.Png);
-            XPost("テスト", path);
+            XPost("[自動]気象情報をお知らせします。\n\n※現在準備中です", path);
         }
 
         public static string Get3H(DateTime dt)
