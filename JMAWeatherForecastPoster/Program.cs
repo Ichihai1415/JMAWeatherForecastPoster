@@ -145,7 +145,7 @@ namespace JMAWeatherForecastPoster
             catch (Exception ex)
             {
                 Directory.CreateDirectory("error\\" + DateTime.Now.ToString("yyyyMM"));
-                File.WriteAllText("error\\" + DateTime.Now.ToString("yyyyMM\\\\yyyyMMddHHmmss" + ".log"), ex.ToString());
+                File.WriteAllText("error\\" + DateTime.Now.ToString("yyyyMM\\\\yyyyMMddHHmmss") + ".log", ex.ToString());
                 throw;
             }
         }
