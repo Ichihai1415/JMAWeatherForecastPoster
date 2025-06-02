@@ -83,6 +83,7 @@ namespace JMAWeatherForecastPoster
                 text.AppendLine((string)json_warning["headlineText"]);
                 text.AppendLine();
                 text.Append("発表中: ");
+                var warn = "";
                 foreach (var areaType in json_warning["areaTypes"].AsArray())
                     foreach (var area in areaType["areas"].AsArray())
                         if ((string)area["code"] == "1720100")
@@ -92,16 +93,18 @@ namespace JMAWeatherForecastPoster
                             var c = 0;
                             foreach (var warning in warnings)
                             {
+                                //ないときidなし、status:発表警報・注意報はなし　になる
+                                if ((string)warning["status"] == "発表警報・注意報はなし" || (string)warning["status"] == "解除") continue;
                                 var code = int.Parse((string)warning["code"]);
                                 var name = GetWarningName(code);
                                 if (code == 0) break;
-                                else if ((string)warning["status"] == "解除") continue;
-                                text.Append(name);
-                                text.Append('　');
+                                warn += name;
+                                warn += '　';
                                 c++;
                             }
-                            if (c == 0) text.Append("なし");
+                            if (c == 0) warn = "なし";
                         }
+                text.Append(warn);
                 text.AppendLine();
                 text.AppendLine();
                 text.AppendLine();
@@ -137,12 +140,13 @@ namespace JMAWeatherForecastPoster
                 Directory.CreateDirectory(path);
                 path += "\\" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png";
                 image.Save(path, ImageFormat.Png);
-                XPost("[自動]気象情報をお知らせします。\n\n※現在準備中です", path);
+                XPost("[自動]気象情報をお知らせします。\n現在の気温: " + (double?)amedasData["temp"][0] + "℃\n今日の天気:  " + ((string)forecast["weathers"][0]).Replace("　", " ") + "\n\n※現在準備中です", path);
             }
             catch (Exception ex)
             {
                 Directory.CreateDirectory("error\\" + DateTime.Now.ToString("yyyyMM"));
-                File.WriteAllText("error\\" + DateTime.Now.ToString("yyyyMM\\\\yyyyMMddHHmmss"),ex.ToString());
+                File.WriteAllText("error\\" + DateTime.Now.ToString("yyyyMM\\\\yyyyMMddHHmmss" + ".log"), ex.ToString());
+                throw;
             }
         }
 
